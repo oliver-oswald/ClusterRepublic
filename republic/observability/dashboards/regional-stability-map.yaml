@@ -1,0 +1,48 @@
+# Grafana dashboard: Regional Stability Map.
+# Per-ministry instability (restarts) and famine (OOMKills).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-regional-stability-map
+  namespace: ministry-statistics
+  labels:
+    grafana_dashboard: "1"
+data:
+  regional-stability-map.json: |
+    {
+      "title": "Regional Stability Map",
+      "uid": "republic-stability",
+      "tags": ["republic", "truth-system"],
+      "schemaVersion": 39,
+      "refresh": "30s",
+      "time": { "from": "now-24h", "to": "now" },
+      "panels": [
+        {
+          "type": "table", "title": "Instability by Ministry (restarts, 24h)",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 10, "w": 12, "x": 0, "y": 0 },
+          "targets": [{
+            "expr": "sum by (namespace) (increase(kube_pod_container_status_restarts_total{namespace=~\"ministry-.*\"}[24h]))",
+            "format": "table", "instant": true, "refId": "A"
+          }]
+        },
+        {
+          "type": "timeseries", "title": "Famine (OOMKilled containers)",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 10, "w": 12, "x": 12, "y": 0 },
+          "targets": [{
+            "expr": "sum by (namespace) (increase(kube_pod_container_status_last_terminated_reason{reason=\"OOMKilled\"}[1h]))",
+            "legendFormat": "{{namespace}}", "refId": "A"
+          }]
+        },
+        {
+          "type": "timeseries", "title": "Bureaucratic Inefficiency (API request latency p99)",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 9, "w": 24, "x": 0, "y": 10 },
+          "targets": [{
+            "expr": "histogram_quantile(0.99, sum by (le) (rate(apiserver_request_duration_seconds_bucket[5m])))",
+            "legendFormat": "p99", "refId": "A"
+          }]
+        }
+      ]
+    }

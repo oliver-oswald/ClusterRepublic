@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: chaos-experiments
+  namespace: argocd
+  annotations:
+    # After Chaos Mesh CRDs exist.
+    argocd.argoproj.io/sync-wave: "11"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: republic
+  source:
+    repoURL: https://github.com/CHANGEME/republic.git   # CHANGEME
+    targetRevision: HEAD
+    path: republic/chaos/experiments
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ministry-emergency-events
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    retry:
+      limit: 5
+      backoff: { duration: 10s, factor: 2, maxDuration: 3m }

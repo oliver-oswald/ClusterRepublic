@@ -1,0 +1,19 @@
+# The pool of LAN IPs the Republic hands out to LoadBalancer services.
+# These must be free addresses on your network, outside your DHCP range.
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: republic-pool
+  namespace: metallb-system
+spec:
+  addresses:
+    - 192.168.1.240-192.168.1.250   # CHANGEME to a free range on your LAN
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: republic-l2
+  namespace: metallb-system
+spec:
+  ipAddressPools:
+    - republic-pool

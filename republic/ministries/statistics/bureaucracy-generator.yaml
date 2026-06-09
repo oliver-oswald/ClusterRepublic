@@ -1,0 +1,142 @@
+# The Bureaucracy Generator. A daily CronJob in the Ministry of Statistics that
+# reads the Truth System and issues a State Announcement — to its logs and to a
+# ConfigMap (state-announcement) other services can read. Pure stdlib Python so
+# the image stays small and tagged (the disallow-latest law applies here).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: bureaucracy-generator
+  namespace: ministry-statistics
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: bureaucracy-generator
+  namespace: ministry-statistics
+rules:
+  - apiGroups: [""]
+    resources: [configmaps]
+    verbs: [get, create, update, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: bureaucracy-generator
+  namespace: ministry-statistics
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: bureaucracy-generator
+subjects:
+  - kind: ServiceAccount
+    name: bureaucracy-generator
+    namespace: ministry-statistics
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bureaucracy-generator-script
+  namespace: ministry-statistics
+data:
+  report.py: |
+    import json, os, ssl, datetime
+    import urllib.request, urllib.parse, urllib.error
+
+    PROM = os.environ["PROMETHEUS_URL"]
+    NS = os.environ["NAMESPACE"]
+    API = "https://kubernetes.default.svc"
+    TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+    CA = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+
+    def promq(expr):
+        url = f"{PROM}/api/v1/query?query=" + urllib.parse.quote(expr)
+        try:
+            with urllib.request.urlopen(url, timeout=15) as r:
+                res = json.load(r)["data"]["result"]
+                return float(res[0]["value"][1]) if res else 0.0
+        except Exception as e:
+            print(f"[warn] query failed: {e}")
+            return 0.0
+
+    cpu = promq('sum(rate(container_cpu_usage_seconds_total{container!=""}[5m]))')
+    restarts = promq('sum(increase(kube_pod_container_status_restarts_total[24h]))')
+    famine = promq('sum(increase(kube_pod_container_status_last_terminated_reason{reason="OOMKilled"}[24h]))')
+
+    mood = "flourishing" if restarts < 5 else "enduring temporary turbulence"
+    today = datetime.date.today().isoformat()
+    announcement = (
+        f"STATE BULLETIN — {today}. The Republic is {mood}. "
+        f"Industrial output holds at {cpu:.2f} cores. "
+        f"{int(restarts)} instances of political instability were corrected through "
+        f"ideological rerouting. "
+        + (f"Regrettably, {int(famine)} famine event(s) (OOMKills) were recorded; "
+           f"the Ministry of Agriculture has been notified. "
+           if famine else "No famine was reported; the granaries are full. ")
+        + "The Central Committee thanks the workers."
+    )
+    print("=" * 72)
+    print(announcement)
+    print("=" * 72)
+
+    # Publish to a ConfigMap via the Kubernetes API (best-effort).
+    try:
+        token = open(TOKEN_PATH).read().strip()
+        ctx = ssl.create_default_context(cafile=CA)
+        body = json.dumps({
+            "apiVersion": "v1", "kind": "ConfigMap",
+            "metadata": {"name": "state-announcement", "namespace": NS},
+            "data": {"latest": announcement, "issued": today},
+        }).encode()
+        # Try update (PUT); fall back to create (POST) if absent.
+        for method, url in (("PUT", f"{API}/api/v1/namespaces/{NS}/configmaps/state-announcement"),
+                            ("POST", f"{API}/api/v1/namespaces/{NS}/configmaps")):
+            req = urllib.request.Request(url, data=body, method=method)
+            req.add_header("Authorization", f"Bearer {token}")
+            req.add_header("Content-Type", "application/json")
+            try:
+                urllib.request.urlopen(req, context=ctx, timeout=15)
+                print(f"[ok] announcement published via {method}")
+                break
+            except urllib.error.HTTPError as e:
+                if method == "PUT" and e.code == 404:
+                    continue
+                print(f"[warn] publish via {method} failed: {e}")
+                break
+    except Exception as e:
+        print(f"[warn] could not publish announcement: {e}")
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: bureaucracy-generator
+  namespace: ministry-statistics
+spec:
+  schedule: "0 6 * * *"          # daily at 06:00 — the morning bulletin
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        spec:
+          serviceAccountName: bureaucracy-generator
+          priorityClassName: republic-low
+          restartPolicy: Never
+          containers:
+            - name: report
+              image: python:3.12-slim
+              command: ["python", "/script/report.py"]
+              env:
+                - name: PROMETHEUS_URL
+                  value: "http://kube-prometheus-stack-prometheus.ministry-statistics.svc.cluster.local:9090"
+                - name: NAMESPACE
+                  valueFrom: { fieldRef: { fieldPath: metadata.namespace } }
+              resources:
+                requests: { cpu: "50m", memory: 64Mi }
+                limits:   { cpu: "200m", memory: 128Mi }
+              volumeMounts:
+                - { name: script, mountPath: /script }
+          volumes:
+            - name: script
+              configMap: { name: bureaucracy-generator-script }

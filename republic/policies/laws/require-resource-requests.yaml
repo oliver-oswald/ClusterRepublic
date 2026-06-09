@@ -1,0 +1,32 @@
+# LAW: Every citizen-service declares its needs (resources are planned).
+# Audited rather than enforced, because LimitRange already injects defaults —
+# this surfaces workloads that slip through without explicit requests so the
+# Ministry of Statistics can name them.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-resource-requests
+  annotations:
+    policies.kyverno.io/title: Planned resources
+    republic.io/translation: "An honest worker states what they will consume."
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: require-cpu-memory-requests
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaceSelector:
+                matchLabels:
+                  republic.io/ministry: "true"
+      validate:
+        message: "Workload should declare CPU and memory requests (the Plan must account for it)."
+        foreach:
+          - list: "request.object.spec.containers"
+            pattern:
+              resources:
+                requests:
+                  cpu: "?*"
+                  memory: "?*"

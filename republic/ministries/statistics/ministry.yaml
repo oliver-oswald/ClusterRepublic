@@ -1,0 +1,80 @@
+# 📊 Ministry of Statistics — the Truth System
+# Hosts kube-prometheus-stack + Loki (synced by their own ArgoCD apps into this
+# namespace). This manifest establishes the namespace, identity, quota and
+# borders. PSA is "privileged" because node-exporter/promtail are host-level
+# daemonsets.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ministry-statistics
+  labels:
+    republic.io/ministry: "true"
+    republic.io/name: statistics
+    pod-security.kubernetes.io/enforce: privileged
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: quota
+  namespace: ministry-statistics
+spec:
+  hard:
+    requests.cpu: "6"          # CHANGEME — Prometheus + Grafana + Loki are hungry
+    requests.memory: 12Gi
+    limits.cpu: "12"
+    limits.memory: 24Gi
+    persistentvolumeclaims: "10"
+    pods: "60"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: defaults
+  namespace: ministry-statistics
+spec:
+  limits:
+    - type: Container
+      default:        { cpu: "500m", memory: 512Mi }
+      defaultRequest: { cpu: "100m", memory: 128Mi }
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: minister
+  namespace: ministry-statistics
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ministry-laws
+  namespace: ministry-statistics
+data:
+  charter: |
+    The Ministry of Statistics is the sole authority on Truth. It collects all
+    metrics, logs, and traces. Its figures are, by definition, correct. The
+    Central Committee reads — but cannot alter — these numbers.
+  motto: "What is measured, is real. What is not measured, did not happen."
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: ministry-statistics
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+# The Truth System must reach every ministry to scrape; and be reachable by
+# Grafana clients + the Central Committee querying Prometheus.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-scrape-and-query
+  namespace: ministry-statistics
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - {}                      # Grafana UI, Prometheus API, Alertmanager
+  egress:
+    - {}                      # scrape every ministry + DNS

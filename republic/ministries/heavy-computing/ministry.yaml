@@ -1,0 +1,100 @@
+# 🧠 Ministry of Heavy Computing
+# Apps, AI inference, batch jobs. High priority, autoscaling-friendly.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ministry-heavy-computing
+  labels:
+    republic.io/ministry: "true"
+    republic.io/name: heavy-computing
+    pod-security.kubernetes.io/enforce: baseline
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: quota
+  namespace: ministry-heavy-computing
+spec:
+  hard:
+    requests.cpu: "8"          # CHANGEME to fit your cluster
+    requests.memory: 16Gi
+    limits.cpu: "16"
+    limits.memory: 32Gi
+    pods: "50"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: defaults
+  namespace: ministry-heavy-computing
+spec:
+  limits:
+    - type: Container
+      default:            { cpu: "500m", memory: 512Mi }
+      defaultRequest:     { cpu: "100m", memory: 128Mi }
+      max:                { cpu: "4",    memory: 8Gi }
+---
+# Minister identity for this ministry.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: minister
+  namespace: ministry-heavy-computing
+---
+# The laws of this ministry (free-form, read by workloads & the bureaucracy gen).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ministry-laws
+  namespace: ministry-heavy-computing
+data:
+  charter: |
+    The Ministry of Heavy Computing directs industrial output (CPU). It runs
+    applications, AI inference, and batch labor. Workloads SHOULD declare
+    priorityClassName republic-high and MUST declare resource requests.
+  motto: "From each core, according to its clock speed."
+---
+# Borders: default-deny, then explicit allows.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: ministry-heavy-computing
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-and-intra
+  namespace: ministry-heavy-computing
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from: [{ podSelector: {} }]   # intra-namespace
+  egress:
+    - to: [{ podSelector: {} }]     # intra-namespace
+    - to:                            # DNS to CoreDNS in kube-system
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+---
+# Let the Truth System (Ministry of Statistics) scrape metrics.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-metrics-scrape-from-statistics
+  namespace: ministry-heavy-computing
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ministry-statistics

@@ -1,0 +1,50 @@
+# Grafana dashboard: National Production Index.
+# Auto-loaded by the kube-prometheus-stack Grafana sidecar (grafana_dashboard label).
+# Panels speak the political-metrics dialect (see docs/CONSTITUTION.md).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-national-production-index
+  namespace: ministry-statistics
+  labels:
+    grafana_dashboard: "1"
+data:
+  national-production-index.json: |
+    {
+      "title": "National Production Index",
+      "uid": "republic-npi",
+      "tags": ["republic", "truth-system"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "refresh": "30s",
+      "time": { "from": "now-6h", "to": "now" },
+      "panels": [
+        {
+          "type": "stat", "title": "Industrial Output (CPU cores in use)",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 6, "w": 8, "x": 0, "y": 0 },
+          "targets": [{ "expr": "sum(rate(container_cpu_usage_seconds_total{container!=\"\"}[5m]))", "refId": "A" }]
+        },
+        {
+          "type": "stat", "title": "Population Pressure (Memory, bytes)",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 6, "w": 8, "x": 8, "y": 0 },
+          "targets": [{ "expr": "sum(container_memory_working_set_bytes{container!=\"\"})", "refId": "A" }]
+        },
+        {
+          "type": "stat", "title": "Political Instability (restarts, 1h)",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 6, "w": 8, "x": 16, "y": 0 },
+          "targets": [{ "expr": "sum(increase(kube_pod_container_status_restarts_total[1h]))", "refId": "A" }]
+        },
+        {
+          "type": "timeseries", "title": "Industrial Output by Ministry",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 9, "w": 24, "x": 0, "y": 6 },
+          "targets": [{
+            "expr": "sum by (namespace) (rate(container_cpu_usage_seconds_total{namespace=~\"ministry-.*\"}[5m]))",
+            "legendFormat": "{{namespace}}", "refId": "A"
+          }]
+        }
+      ]
+    }
