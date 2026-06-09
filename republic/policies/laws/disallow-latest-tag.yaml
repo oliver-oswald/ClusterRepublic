@@ -1,0 +1,27 @@
+# LAW: No workload may run an unversioned (:latest) image in a ministry.
+# Reproducibility is a constitutional duty (Article 2).
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-latest-tag
+  annotations:
+    policies.kyverno.io/title: No :latest in the ministries
+    republic.io/translation: "A citizen-service must declare exactly which version of itself it is."
+spec:
+  validationFailureAction: Enforce   # deprecated alias still honored in 3.3.x
+  background: true
+  rules:
+    - name: require-image-tag
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaceSelector:
+                matchLabels:
+                  republic.io/ministry: "true"
+      validate:
+        message: "Counter-revolutionary deployment: images must be tagged, ':latest' is forbidden."
+        pattern:
+          spec:
+            containers:
+              - image: "!*:latest"

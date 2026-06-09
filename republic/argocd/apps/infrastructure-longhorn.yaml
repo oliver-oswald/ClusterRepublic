@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: infrastructure-longhorn
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-18"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: republic
+  source:
+    repoURL: https://charts.longhorn.io
+    chart: longhorn
+    targetRevision: 1.7.2         # CHANGEME if you pin a different version
+    helm:
+      values: |
+        # Ministry of Agriculture: replicated block storage, default class.
+        persistence:
+          defaultClass: true
+          defaultClassReplicaCount: 2   # CHANGEME for single-node labs -> 1
+        defaultSettings:
+          defaultReplicaCount: 2        # CHANGEME for single-node labs -> 1
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: longhorn-system
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

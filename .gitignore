@@ -1,0 +1,17 @@
+# Secrets / kubeconfigs that must never enter the Constitution
+*.kubeconfig
+kubeconfig*
+*.key
+*.pem
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp

@@ -1,0 +1,35 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: observability-loki
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: republic
+  source:
+    repoURL: https://grafana.github.io/helm-charts
+    chart: loki-stack
+    targetRevision: 2.10.2        # CHANGEME if you pin a different version
+    helm:
+      values: |
+        # Logs for the Truth System. loki-stack = single-binary Loki + promtail.
+        loki:
+          enabled: true
+          persistence:
+            enabled: true
+            storageClassName: longhorn
+            size: 20Gi             # CHANGEME
+        promtail:
+          enabled: true            # ships every pod's logs into Loki
+        grafana:
+          enabled: false           # Grafana comes from kube-prometheus-stack
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ministry-statistics
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions:
+      - CreateNamespace=true

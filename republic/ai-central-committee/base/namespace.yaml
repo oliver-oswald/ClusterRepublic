@@ -1,0 +1,61 @@
+# The Central Committee's seat of deliberation. A first-class ministry in all
+# but name. Quota is generous because the LLM runtime (Ollama) is memory-hungry.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ai-central-committee
+  labels:
+    republic.io/ministry: "true"
+    republic.io/name: central-committee
+    pod-security.kubernetes.io/enforce: baseline
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: quota
+  namespace: ai-central-committee
+spec:
+  hard:
+    requests.cpu: "6"          # CHANGEME — raise if running large models on CPU
+    requests.memory: 12Gi
+    limits.cpu: "12"
+    limits.memory: 24Gi
+    persistentvolumeclaims: "5"
+    pods: "20"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: defaults
+  namespace: ai-central-committee
+spec:
+  limits:
+    - type: Container
+      default:        { cpu: "500m", memory: 512Mi }
+      defaultRequest: { cpu: "100m", memory: 128Mi }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: ai-central-committee
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-committee-traffic
+  namespace: ai-central-committee
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from: [{ podSelector: {} }]   # intra (engine <-> ollama/postgres/redis)
+    - from:                          # scraping + API access from Truth System
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ministry-statistics
+  egress:
+    - {}   # needs: DNS, Prometheus query, and the internet to pull LLM models

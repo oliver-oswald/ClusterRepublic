@@ -1,0 +1,56 @@
+# The root "app-of-apps". A human applies this once. It points ArgoCD at
+# republic/argocd/apps/, where every other Application lives. From here on,
+# the cluster is governed entirely by Git.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: republic-root
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: republic
+  source:
+    repoURL: https://github.com/CHANGEME/republic.git   # CHANGEME
+    targetRevision: HEAD
+    path: republic/argocd/apps
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+---
+# The AppProject scopes what the Republic's Applications are allowed to touch.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: republic
+  namespace: argocd
+spec:
+  description: The People's Homelab Republic
+  sourceRepos:
+    - https://github.com/CHANGEME/republic.git           # CHANGEME
+    # Helm chart repos used by infrastructure/observability/chaos:
+    - https://metallb.github.io/metallb
+    - https://charts.longhorn.io
+    - https://charts.min.io/
+    - https://kyverno.github.io/kyverno/
+    - https://prometheus-community.github.io/helm-charts
+    - https://grafana.github.io/helm-charts
+    - https://charts.chaos-mesh.org
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: '*'
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'

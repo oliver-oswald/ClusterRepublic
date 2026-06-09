@@ -1,0 +1,61 @@
+# Ollama — the local LLM runtime. CPU-only by default; add a GPU node + the
+# nvidia device plugin and uncomment the GPU resources for real performance.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ollama-models
+  namespace: ai-central-committee
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 20Gi           # CHANGEME — models are large
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+  namespace: ai-central-committee
+  labels: { app: ollama }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }   # single RWO volume
+  selector: { matchLabels: { app: ollama } }
+  template:
+    metadata:
+      labels: { app: ollama }
+    spec:
+      priorityClassName: republic-vanguard
+      containers:
+        - name: ollama
+          image: ollama/ollama:0.5.4    # CHANGEME if you pin a different version
+          ports:
+            - { name: http, containerPort: 11434 }
+          env:
+            - { name: OLLAMA_HOST, value: "0.0.0.0" }
+          resources:
+            requests: { cpu: "1", memory: 4Gi }
+            limits:   { cpu: "6", memory: 12Gi }
+            # GPU (optional): uncomment and schedule onto a GPU node.
+            # limits:
+            #   nvidia.com/gpu: 1
+          volumeMounts:
+            - { name: models, mountPath: /root/.ollama }
+          readinessProbe:
+            httpGet: { path: /, port: http }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: models
+          persistentVolumeClaim: { claimName: ollama-models }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama
+  namespace: ai-central-committee
+spec:
+  selector: { app: ollama }
+  ports:
+    - { name: http, port: 11434, targetPort: http }

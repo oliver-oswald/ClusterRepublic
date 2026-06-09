@@ -1,0 +1,39 @@
+# LAW: Agriculture cannot hoard compute.
+# The Ministry of Agriculture exists to steward storage, not to amass CPU.
+# Any single container in ministry-agriculture requesting > 2 cores is rejected.
+#
+# Equivalent OPA/Rego (for reference — this repo enforces via Kyverno):
+#
+#   deny[msg] {
+#     input.review.object.metadata.namespace == "ministry-agriculture"
+#     c := input.review.object.spec.containers[_]
+#     to_number(c.resources.requests.cpu) > 2
+#     msg := "agriculture cannot hoard compute"
+#   }
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: agriculture-no-compute-hoarding
+  annotations:
+    policies.kyverno.io/title: Agriculture compute ceiling
+    republic.io/translation: "Let the farmers farm; the factories will compute."
+spec:
+  validationFailureAction: Enforce
+  background: false
+  rules:
+    - name: cpu-request-ceiling
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: [ministry-agriculture]
+      validate:
+        message: "Agriculture may not hoard compute: per-container CPU request must be <= 2."
+        foreach:
+          - list: "request.object.spec.containers"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ element.resources.requests.cpu || '0' }}"
+                    operator: GreaterThan
+                    value: "2"

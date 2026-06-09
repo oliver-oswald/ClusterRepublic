@@ -1,0 +1,27 @@
+# LAW: Every ministry namespace must declare its identity, so the Truth System
+# and the laws can find it. Audited to avoid blocking bootstrap ordering.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-ministry-labels
+  annotations:
+    policies.kyverno.io/title: Ministry identity
+    republic.io/translation: "A region without a name pays no taxes and keeps no records."
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: require-name-label
+      match:
+        any:
+          - resources:
+              kinds: [Namespace]
+              selector:
+                matchLabels:
+                  republic.io/ministry: "true"
+      validate:
+        message: "A ministry namespace must carry the label republic.io/name."
+        pattern:
+          metadata:
+            labels:
+              republic.io/name: "?*"

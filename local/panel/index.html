@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>☭ Central Committee — Control Panel</title>
+<style>
+  :root{
+    --red:#b91515; --red2:#7e0d0d; --gold:#e8c66b; --ink:#1a1410; --paper:#f4ecd8;
+    --panel:#241a16; --panel2:#2e211b; --ok:#5aa469; --bad:#d9534f; --line:#4a3528;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Courier New",ui-monospace,monospace;background:
+       radial-gradient(circle at 50% -10%, #3a1414 0%, #1a0e0e 60%, #120a0a 100%);
+       color:var(--paper);min-height:100vh}
+  header{display:flex;align-items:center;gap:16px;padding:18px 26px;
+         background:linear-gradient(180deg,var(--red),var(--red2));
+         border-bottom:3px solid var(--gold);box-shadow:0 4px 18px #0008}
+  header .star{font-size:42px;color:var(--gold);text-shadow:0 0 12px #e8c66b88;animation:spin 18s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  header h1{margin:0;font-size:22px;letter-spacing:2px;text-transform:uppercase}
+  header .sub{font-size:12px;opacity:.85;letter-spacing:1px}
+  .badge{margin-left:auto;padding:6px 14px;border:2px solid var(--gold);border-radius:20px;
+         font-size:13px;letter-spacing:1px;background:#0004}
+  .badge.ok{color:#bdf0c6;border-color:#6fce82}
+  .badge.bad{color:#ffc9c7;border-color:#e08a87}
+  main{max-width:1080px;margin:0 auto;padding:22px;display:grid;gap:18px;
+       grid-template-columns:repeat(3,1fr)}
+  .card{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);
+        border-radius:10px;padding:16px 18px;box-shadow:inset 0 0 0 1px #0003, 0 6px 16px #0006}
+  .card h2{margin:0 0 10px;font-size:13px;letter-spacing:2px;text-transform:uppercase;color:var(--gold)}
+  .stat .num{font-size:34px;font-weight:bold;color:#fff;line-height:1}
+  .stat .unit{font-size:12px;opacity:.7;margin-top:6px}
+  .span3{grid-column:1/4}.span2{grid-column:1/3}
+  .plan-meta{font-size:12px;opacity:.75;margin-bottom:8px}
+  .announce{background:#0d0907;border-left:4px solid var(--gold);padding:12px 14px;margin:10px 0;
+            font-style:italic;color:#f1e4c4;border-radius:4px}
+  pre{background:#0d0907;border:1px solid var(--line);border-radius:6px;padding:12px;overflow:auto;
+      max-height:320px;font-size:13px;color:#cfe9c9;margin:0}
+  button{font-family:inherit;cursor:pointer;border-radius:6px;border:1px solid var(--line);
+         padding:10px 14px;font-size:13px;letter-spacing:1px;color:var(--paper);
+         background:#3a2a22;transition:.15s;text-transform:uppercase}
+  button:hover{filter:brightness(1.2)}
+  button:disabled{opacity:.5;cursor:wait}
+  .primary{background:linear-gradient(180deg,#2f7d46,#1f5a31);border-color:#3c9a59}
+  .danger{background:linear-gradient(180deg,#b3331f,#7e1f12);border-color:#d9583f}
+  .crisis-grid{display:flex;flex-wrap:wrap;gap:10px}
+  .crisis-grid button{flex:1;min-width:150px}
+  .crises{margin-top:12px;font-size:12px}
+  .chip{display:inline-block;background:#5a1313;border:1px solid #d9583f;color:#ffd9d4;
+        padding:3px 9px;border-radius:12px;margin:3px 4px 0 0;font-size:11px}
+  .calm{opacity:.6;font-size:12px}
+  #toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#120a0a;
+         border:1px solid var(--gold);color:var(--gold);padding:10px 18px;border-radius:8px;
+         opacity:0;transition:.3s;pointer-events:none;max-width:80%;font-size:13px}
+  #toast.show{opacity:1}
+  a{color:var(--gold)}
+  footer{max-width:1080px;margin:0 auto;padding:6px 22px 30px;font-size:11px;opacity:.55}
+</style>
+</head>
+<body>
+<header>
+  <div class="star">★</div>
+  <div>
+    <h1>The People's Central Committee</h1>
+    <div class="sub">CONTROL PANEL · Five-Year Planning &amp; Emergency Directorate</div>
+  </div>
+  <div id="health" class="badge">connecting…</div>
+</header>
+
+<main>
+  <div class="card stat"><h2>Industrial Output</h2><div class="num" id="m_cpu">—</div><div class="unit">CPU cores in use</div></div>
+  <div class="card stat"><h2>Population Pressure</h2><div class="num" id="m_mem">—</div><div class="unit">memory working set</div></div>
+  <div class="card stat"><h2>Political Instability</h2><div class="num" id="m_restarts">—</div><div class="unit">pod restarts / 1h</div></div>
+
+  <div class="card span2">
+    <h2>Current Five-Year Plan</h2>
+    <div class="plan-meta" id="plan_meta">No plan on record.</div>
+    <div class="announce" id="plan_announce">—</div>
+    <pre id="plan_yaml">—</pre>
+    <div style="margin-top:12px">
+      <button class="primary" id="btn_deliberate" onclick="deliberate()">⚒ Convene the Committee</button>
+      <span class="calm" id="deliberate_note"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Manufacture a Crisis</h2>
+    <div class="calm" style="margin-bottom:10px">Operator-triggered fault injection against the State Cinema.</div>
+    <div class="crisis-grid">
+      <button class="danger" onclick="crisis('purge')">☠ Political Purge<br><small>kill a pod</small></button>
+      <button class="danger" onclick="crisis('slowdown')">🐌 Bureaucratic Slowdown<br><small>+300ms latency</small></button>
+      <button class="danger" onclick="crisis('overwork')">🔥 Forced Overwork<br><small>CPU stress</small></button>
+      <button onclick="crisis('restore')">🕊 Restore Order</button>
+    </div>
+    <div class="crises" id="crises"><span class="calm">No active crises. The State is at peace.</span></div>
+  </div>
+</main>
+
+<div id="toast"></div>
+<footer>
+  Other organs of state:
+  <a href="http://localhost:3000" target="_blank">Grafana (Truth System)</a> ·
+  <a href="https://localhost:8080" target="_blank">ArgoCD (Constitution)</a> ·
+  <a href="http://localhost:2333" target="_blank">Chaos Dashboard</a>.
+  The Committee reads the Truth System but cannot alter it; only the operator manufactures crises.
+</footer>
+
+<script>
+const fmtCores = v => v==null ? "—" : v.toFixed(2);
+const fmtGB    = v => v==null ? "—" : (v/1073741824).toFixed(2)+" GB";
+const fmtInt   = v => v==null ? "—" : Math.round(v).toString();
+
+function toast(msg){
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),3500);
+}
+
+async function loadState(){
+  try{
+    const s = await (await fetch('/api/state')).json();
+    const h = document.getElementById('health');
+    const ok = s.health==='vigilant';
+    h.textContent = ok ? '● Committee vigilant' : '● '+s.health;
+    h.className = 'badge '+(ok?'ok':'bad');
+
+    document.getElementById('m_cpu').textContent      = fmtCores(s.metrics.industrial_output_cores);
+    document.getElementById('m_mem').textContent      = fmtGB(s.metrics.population_pressure_bytes);
+    document.getElementById('m_restarts').textContent = fmtInt(s.metrics.instability_restarts_1h);
+
+    if(s.plan && s.plan.id){
+      document.getElementById('plan_meta').textContent =
+        `Plan #${s.plan.id} · issued ${new Date(s.plan.created_at).toLocaleString()}`;
+      document.getElementById('plan_announce').textContent = s.plan.announcement || '—';
+      document.getElementById('plan_yaml').textContent = s.plan.plan_yaml || '—';
+    }
+
+    const c = document.getElementById('crises');
+    if(s.crises && s.crises.length){
+      c.innerHTML = s.crises.map(x=>`<span class="chip">⚠ ${x}</span>`).join('');
+    }else{
+      c.innerHTML = '<span class="calm">No active crises. The State is at peace.</span>';
+    }
+  }catch(e){
+    const h=document.getElementById('health'); h.textContent='● panel offline'; h.className='badge bad';
+  }
+}
+
+async function deliberate(){
+  const b=document.getElementById('btn_deliberate'), n=document.getElementById('deliberate_note');
+  b.disabled=true; n.textContent=' the Committee is in session (the LLM deliberates)…';
+  try{
+    const d = await (await fetch('/api/deliberate',{method:'POST'})).json();
+    toast(d.announcement ? '📜 '+d.announcement : 'A new Five-Year Plan was drafted.');
+  }catch(e){ toast('The Committee failed to convene: '+e); }
+  finally{ b.disabled=false; n.textContent=''; loadState(); }
+}
+
+async function crisis(type){
+  const labels={purge:'Political Purge',slowdown:'Bureaucratic Slowdown',overwork:'Forced Overwork',restore:'Restoration of Order'};
+  toast('Issuing directive: '+labels[type]+'…');
+  try{
+    const r = await (await fetch('/api/crisis/'+type,{method:'POST'})).json();
+    toast(r.ok ? (type==='restore'?'🕊 Order restored.':'⚠ '+labels[type]+' under way — watch the Truth System.')
+               : 'Directive rejected: '+(r.err||'unknown'));
+  }catch(e){ toast('Directive failed: '+e); }
+  setTimeout(loadState, 800);
+}
+
+loadState();
+setInterval(loadState, 4000);
+</script>
+</body>
+</html>

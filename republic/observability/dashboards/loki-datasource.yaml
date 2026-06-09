@@ -1,0 +1,18 @@
+# Registers Loki as a Grafana datasource. The kube-prometheus-stack Grafana
+# sidecar auto-loads any ConfigMap labelled grafana_datasource.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasource-loki
+  namespace: ministry-statistics
+  labels:
+    grafana_datasource: "1"
+data:
+  loki-datasource.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Loki
+        type: loki
+        access: proxy
+        url: http://loki.ministry-statistics.svc.cluster.local:3100
+        isDefault: false

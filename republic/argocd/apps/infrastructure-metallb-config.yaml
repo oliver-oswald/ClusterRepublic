@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: infrastructure-metallb-config
+  namespace: argocd
+  annotations:
+    # One wave after MetalLB itself so the CRDs (IPAddressPool, L2Advertisement)
+    # exist before we create instances of them.
+    argocd.argoproj.io/sync-wave: "-19"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: republic
+  source:
+    repoURL: https://github.com/CHANGEME/republic.git   # CHANGEME
+    targetRevision: HEAD
+    path: republic/infrastructure/metallb/config
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: metallb-system
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    retry:
+      limit: 5
+      backoff: { duration: 10s, factor: 2, maxDuration: 3m }

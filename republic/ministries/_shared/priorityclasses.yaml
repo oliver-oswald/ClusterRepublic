@@ -1,0 +1,33 @@
+# The social order. Higher value = scheduled and evicted-last first.
+# Referenced by ministry workloads via spec.priorityClassName.
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: republic-vanguard
+value: 1000000
+globalDefault: false
+description: "Central Committee and observability control plane. Evicted last."
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: republic-high
+value: 100000
+globalDefault: false
+description: "Heavy Computing and Security ministries."
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: republic-normal
+value: 1000
+globalDefault: true
+description: "Default for ordinary ministry workloads (citizens)."
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: republic-low
+value: 100
+globalDefault: false
+description: "Batch jobs, chaos, best-effort. First to be evicted under pressure."

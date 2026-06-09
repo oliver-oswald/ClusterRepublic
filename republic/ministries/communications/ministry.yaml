@@ -1,0 +1,78 @@
+# 📡 Ministry of Communications
+# Ingress, DNS, and VPN — the Republic's borders with the outside world.
+# Deploy your ingress controller (e.g. ingress-nginx), external CoreDNS/Pi-hole,
+# or a WireGuard gateway here.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ministry-communications
+  labels:
+    republic.io/ministry: "true"
+    republic.io/name: communications
+    pod-security.kubernetes.io/enforce: baseline
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: quota
+  namespace: ministry-communications
+spec:
+  hard:
+    requests.cpu: "2"          # CHANGEME
+    requests.memory: 4Gi
+    limits.cpu: "4"
+    limits.memory: 8Gi
+    pods: "30"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: defaults
+  namespace: ministry-communications
+spec:
+  limits:
+    - type: Container
+      default:        { cpu: "300m", memory: 256Mi }
+      defaultRequest: { cpu: "50m",  memory: 64Mi }
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: minister
+  namespace: ministry-communications
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ministry-laws
+  namespace: ministry-communications
+data:
+  charter: |
+    The Ministry of Communications controls ingress, name resolution, and
+    encrypted tunnels. Network throughput is reported to the Truth System as
+    "trade volume"; latency as "bureaucratic inefficiency".
+  motto: "All packets reach the People — eventually."
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: ministry-communications
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+# Communications is the border: it may receive traffic from anywhere and reach
+# the rest of the Republic (it fronts internal services).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-gateway
+  namespace: ministry-communications
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - {}                      # accept external/LoadBalancer traffic
+  egress:
+    - {}                      # may route to any ministry + DNS

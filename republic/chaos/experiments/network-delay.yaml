@@ -1,0 +1,25 @@
+# Scheduled "bureaucratic slowdown": injects 100ms latency for 5 minutes every
+# hour into opted-in pods (those labelled republic.io/chaos-eligible=true).
+# Surfaces in the Truth System as a spike in "bureaucratic inefficiency" (latency).
+# Inert by default — no pod carries the label until you enlist one.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: Schedule
+metadata:
+  name: network-delay
+  namespace: ministry-emergency-events
+spec:
+  schedule: "15 * * * *"
+  concurrencyPolicy: Forbid
+  historyLimit: 5
+  type: NetworkChaos
+  networkChaos:
+    action: delay
+    mode: all
+    duration: "5m"
+    selector:
+      labelSelectors:
+        republic.io/chaos-eligible: "true"
+    delay:
+      latency: "100ms"
+      jitter: "20ms"
+      correlation: "50"

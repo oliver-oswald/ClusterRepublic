@@ -1,0 +1,114 @@
+# 🛡️ Ministry of Security
+# Host the security stack here (Falco, Wazuh, Suricata, CrowdSec). The minister
+# identity is granted CLUSTER-WIDE READ to watch over the whole Republic.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ministry-security
+  labels:
+    republic.io/ministry: "true"
+    republic.io/name: security
+    pod-security.kubernetes.io/enforce: privileged   # Falco/Suricata need host access
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: quota
+  namespace: ministry-security
+spec:
+  hard:
+    requests.cpu: "3"          # CHANGEME
+    requests.memory: 6Gi
+    limits.cpu: "6"
+    limits.memory: 12Gi
+    pods: "40"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: defaults
+  namespace: ministry-security
+spec:
+  limits:
+    - type: Container
+      default:        { cpu: "300m", memory: 256Mi }
+      defaultRequest: { cpu: "50m",  memory: 64Mi }
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: minister
+  namespace: ministry-security
+---
+# Cluster-wide READ access — the watchful eye, but never write.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ministry-security-readonly
+rules:
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ministry-security-readonly
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ministry-security-readonly
+subjects:
+  - kind: ServiceAccount
+    name: minister
+    namespace: ministry-security
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ministry-laws
+  namespace: ministry-security
+data:
+  charter: |
+    The Ministry of Security observes all and trusts none. It watches syscalls
+    (Falco), network flows (Suricata), and logs (Wazuh/CrowdSec). It has
+    cluster-wide READ access and zero write access — vigilance without power.
+  motto: "The People are safe because the People are watched."
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: ministry-security
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-and-intra
+  namespace: ministry-security
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from: [{ podSelector: {} }]
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ministry-statistics
+  egress:
+    - to: [{ podSelector: {} }]
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    - to:                       # may reach the API server to watch the cluster
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - { protocol: TCP, port: 6443 }

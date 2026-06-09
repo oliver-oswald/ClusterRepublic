@@ -1,0 +1,25 @@
+# Scheduled "political purge": kills one matching pod every 30 minutes, but ONLY
+# pods that have explicitly enlisted via the label republic.io/chaos-eligible=true.
+# No pod carries that label by default, so this is inert until you opt one in
+# (Chaos Mesh selects by pod label, not namespace label):
+#
+#   kubectl -n ministry-heavy-computing label pod -l app=state-cinema \
+#     republic.io/chaos-eligible=true
+#
+apiVersion: chaos-mesh.org/v1alpha1
+kind: Schedule
+metadata:
+  name: pod-purge
+  namespace: ministry-emergency-events
+spec:
+  schedule: "*/30 * * * *"
+  concurrencyPolicy: Forbid
+  historyLimit: 5
+  type: PodChaos
+  podChaos:
+    action: pod-kill
+    mode: one
+    selector:
+      # Opt-in only: acts solely on pods carrying this label. Inert by default.
+      labelSelectors:
+        republic.io/chaos-eligible: "true"

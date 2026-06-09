@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: policies-laws
+  namespace: argocd
+  annotations:
+    # After ministries exist (so namespace labels the policies match are set)
+    # and after Kyverno is healthy.
+    argocd.argoproj.io/sync-wave: "-4"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: republic
+  source:
+    repoURL: https://github.com/CHANGEME/republic.git   # CHANGEME
+    targetRevision: HEAD
+    path: republic/policies/laws
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kyverno
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    retry:
+      limit: 5
+      backoff: { duration: 10s, factor: 2, maxDuration: 3m }

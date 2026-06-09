@@ -1,0 +1,42 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: infrastructure-minio
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-17"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: republic
+  source:
+    repoURL: https://charts.min.io/
+    chart: minio
+    targetRevision: 5.4.0         # CHANGEME if you pin a different version
+    helm:
+      values: |
+        # National Archive object storage. Standalone is fine for a homelab;
+        # switch to distributed mode + more replicas for resilience.
+        mode: standalone
+        replicas: 1
+        persistence:
+          enabled: true
+          storageClass: longhorn
+          size: 50Gi               # CHANGEME
+        resources:
+          requests:
+            memory: 512Mi
+        rootUser: republic
+        rootPassword: CHANGEME-minio-root   # CHANGEME (move to a Secret/sealed-secret)
+        buckets:
+          - name: national-archive
+            policy: none
+          - name: state-backups
+            policy: none
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ministry-agriculture
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions:
+      - CreateNamespace=true
