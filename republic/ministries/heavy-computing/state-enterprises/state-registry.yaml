@@ -1,0 +1,145 @@
+# State Enterprise: "State Registry" (blueprint §7, PostgreSQL → State Registry).
+# The official record of all citizen-services, plus Adminer as its public-facing
+# records office (web UI). Honours the citizen-service contract.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: state-registry-credentials
+  namespace: ministry-heavy-computing
+type: Opaque
+stringData:
+  POSTGRES_DB: registry
+  POSTGRES_USER: registrar
+  POSTGRES_PASSWORD: republic-registry      # CHANGEME (use a sealed-secret)
+---
+# Seed the Registry with the founding records of the Republic.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: state-registry-initdb
+  namespace: ministry-heavy-computing
+data:
+  init.sql: |
+    CREATE TABLE IF NOT EXISTS citizens (
+      id          SERIAL PRIMARY KEY,
+      service     TEXT NOT NULL,
+      ministry    TEXT NOT NULL,
+      class       TEXT NOT NULL DEFAULT 'state-enterprise',
+      registered  DATE NOT NULL DEFAULT CURRENT_DATE
+    );
+    INSERT INTO citizens (service, ministry, class) VALUES
+      ('state-cinema',     'heavy-computing',  'state-enterprise'),
+      ('national-archive', 'agriculture',      'state-enterprise'),
+      ('state-registry',   'heavy-computing',  'state-enterprise'),
+      ('governance-engine','central-committee','organ-of-state'),
+      ('the-people',       'all',              'sovereign');
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: state-registry-data
+  namespace: ministry-heavy-computing
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 2Gi                          # CHANGEME
+  # storageClassName omitted -> cluster default.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: state-registry
+  namespace: ministry-heavy-computing
+  labels:
+    app: state-registry
+    republic.io/enterprise: state-registry
+    republic.io/propaganda: "every-citizen-accounted-for"
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector: { matchLabels: { app: state-registry } }
+  template:
+    metadata:
+      labels: { app: state-registry }
+    spec:
+      priorityClassName: republic-normal
+      containers:
+        - name: postgres
+          image: postgres:16.4
+          ports:
+            - { name: pg, containerPort: 5432 }
+          envFrom:
+            - secretRef: { name: state-registry-credentials }
+          env:
+            - { name: PGDATA, value: /var/lib/postgresql/data/pgdata }
+          resources:
+            requests: { cpu: "100m", memory: 256Mi }
+            limits:   { cpu: "1",    memory: 1Gi }
+          readinessProbe:
+            exec: { command: ["pg_isready", "-U", "registrar"] }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/postgresql/data }
+            - { name: initdb, mountPath: /docker-entrypoint-initdb.d }
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: state-registry-data }
+        - name: initdb
+          configMap: { name: state-registry-initdb }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: state-registry
+  namespace: ministry-heavy-computing
+  labels: { app: state-registry }
+spec:
+  selector: { app: state-registry }
+  ports:
+    - { name: pg, port: 5432, targetPort: pg }
+---
+# The records office: a web UI for the Registry.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: state-registry-adminer
+  namespace: ministry-heavy-computing
+  labels:
+    app: state-registry-adminer
+    republic.io/enterprise: state-registry
+    republic.io/propaganda: "the-records-office"
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: state-registry-adminer } }
+  template:
+    metadata:
+      labels: { app: state-registry-adminer }
+    spec:
+      priorityClassName: republic-low
+      containers:
+        - name: adminer
+          image: adminer:4.8.1
+          ports:
+            - { name: http, containerPort: 8080 }
+          env:
+            - { name: ADMINER_DEFAULT_SERVER, value: "state-registry" }
+          resources:
+            requests: { cpu: "50m",  memory: 64Mi }
+            limits:   { cpu: "300m", memory: 256Mi }
+          readinessProbe:
+            httpGet: { path: /, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: state-registry-adminer
+  namespace: ministry-heavy-computing
+  labels: { app: state-registry-adminer }
+spec:
+  selector: { app: state-registry-adminer }
+  ports:
+    - { name: http, port: 8080, targetPort: http }

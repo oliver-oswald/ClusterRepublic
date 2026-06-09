@@ -61,7 +61,31 @@ human once to get ArgoCD itself onto the cluster.
 
 ---
 
-## Quick Start (TL;DR)
+## 🚀 Run your own Republic on one machine (Mac/Linux + colima)
+
+No bare metal required. Found your own People's Republic on a single laptop:
+
+```bash
+brew install colima kubectl helm   # one-time (Linux: install equivalents)
+
+git clone https://github.com/oliver-oswald/ClusterRepublic.git
+cd ClusterRepublic
+
+./local/up.sh        # spins up colima+k3s and deploys the whole Republic
+./local/expose.sh --open   # port-forwards every endpoint + opens the Control Panel
+```
+
+Then visit the **Control Panel** at http://localhost:9000 to watch the Central
+Committee draft Five-Year Plans and to *manufacture a crisis*. Full details and
+the endpoint/credentials table: [`local/README.md`](local/README.md).
+
+`./local/down.sh` stops it; `./local/down.sh --cluster` also stops the VM.
+These scripts apply single-node adaptations automatically — the canonical,
+multi-node bare-metal path is below.
+
+---
+
+## Quick Start — bare metal / Proxmox (TL;DR)
 
 ```bash
 # 0. Stand up a k3s cluster (see bootstrap/k3s/README.md), then:
@@ -87,6 +111,7 @@ dependency order using sync-waves. Full walkthrough:
 - [`docs/CONSTITUTION.md`](docs/CONSTITUTION.md) — design philosophy & non-negotiable rules
 - [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — step-by-step deployment
 - [`docs/BOOT_SEQUENCE.md`](docs/BOOT_SEQUENCE.md) — what happens, in what order, on cold start
+- [`local/README.md`](local/README.md) — run the whole thing on one machine (colima + k3s)
 
 ---
 

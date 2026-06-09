@@ -1,0 +1,68 @@
+# LOCAL LAB adaptation of the governance engine: no image build/registry needed.
+# Runs the real app.py (from the repo) inside a stock python image, installing
+# requirements at startup. The source ConfigMap is created imperatively:
+#   kubectl -n ai-central-committee create configmap governance-engine-src \
+#     --from-file=app.py=republic/ai-central-committee/app/app.py \
+#     --from-file=requirements.txt=republic/ai-central-committee/app/requirements.txt
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: governance-engine
+  namespace: ai-central-committee
+  labels: { app: governance-engine }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: governance-engine } }
+  template:
+    metadata:
+      labels: { app: governance-engine }
+    spec:
+      serviceAccountName: governance-engine
+      priorityClassName: republic-vanguard
+      containers:
+        - name: governance-engine
+          image: python:3.12-slim
+          workingDir: /src
+          command: ["sh", "-c"]
+          args:
+            - pip install --no-cache-dir -r /src/requirements.txt &&
+              exec uvicorn app:app --host 0.0.0.0 --port 8000
+          ports:
+            - { name: http, containerPort: 8000 }
+          env:
+            - { name: PROMETHEUS_URL, value: "http://kube-prometheus-stack-prometheus.ministry-statistics.svc.cluster.local:9090" }
+            - { name: OLLAMA_URL, value: "http://ollama.ai-central-committee.svc.cluster.local:11434" }
+            - { name: REDIS_URL, value: "redis://redis.ai-central-committee.svc.cluster.local:6379/0" }
+            - { name: MODEL, value: "llama3.2:1b" }
+            - { name: DELIBERATION_INTERVAL, value: "900" }
+            - { name: PG_HOST, value: "postgres.ai-central-committee.svc.cluster.local" }
+            - { name: PG_USER,     valueFrom: { secretKeyRef: { name: postgres-credentials, key: POSTGRES_USER } } }
+            - { name: PG_PASSWORD, valueFrom: { secretKeyRef: { name: postgres-credentials, key: POSTGRES_PASSWORD } } }
+            - { name: PG_DB,       valueFrom: { secretKeyRef: { name: postgres-credentials, key: POSTGRES_DB } } }
+          resources:
+            requests: { cpu: "100m", memory: 256Mi }
+            limits:   { cpu: "1",    memory: 1Gi }
+          volumeMounts:
+            - { name: src, mountPath: /src }
+          startupProbe:                 # generous: first boot runs pip install
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+            failureThreshold: 30
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 10
+            periodSeconds: 30
+      volumes:
+        - name: src
+          configMap: { name: governance-engine-src }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: governance-engine
+  namespace: ai-central-committee
+  labels: { app: governance-engine }
+spec:
+  selector: { app: governance-engine }
+  ports:
+    - { name: http, port: 80, targetPort: http }

@@ -1,0 +1,13 @@
+# Local lab values for loki-stack (single-binary Loki + promtail, local-path).
+loki:
+  enabled: true
+  persistence:
+    enabled: true
+    storageClassName: local-path
+    size: 10Gi
+promtail:
+  enabled: true
+grafana:
+  enabled: false
+prometheus:
+  enabled: false

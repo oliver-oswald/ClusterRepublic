@@ -1,0 +1,95 @@
+# State Enterprise: "National Archive" (blueprint §7, Immich → here MinIO).
+# Object storage lives in the Ministry of Agriculture (storage). MinIO is the
+# Archive's S3-compatible vault, with a browsable web console. Honours the
+# citizen-service contract: tagged image, declared resources, health endpoint,
+# Prometheus metrics, propaganda labels.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: national-archive-credentials
+  namespace: ministry-agriculture
+type: Opaque
+stringData:
+  MINIO_ROOT_USER: republic
+  MINIO_ROOT_PASSWORD: republic-archive    # CHANGEME (>=8 chars; use a sealed-secret)
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: national-archive-data
+  namespace: ministry-agriculture
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 5Gi                         # CHANGEME
+  # storageClassName omitted on purpose -> uses the cluster default
+  # (local-path in the lab, longhorn on the full blueprint).
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: national-archive
+  namespace: ministry-agriculture
+  labels:
+    app: national-archive
+    republic.io/enterprise: national-archive
+    republic.io/propaganda: "the-memory-of-the-people"
+spec:
+  replicas: 1
+  strategy: { type: Recreate }             # single RWO volume
+  selector: { matchLabels: { app: national-archive } }
+  template:
+    metadata:
+      labels: { app: national-archive }
+    spec:
+      priorityClassName: republic-normal
+      containers:
+        - name: minio
+          image: minio/minio:RELEASE.2024-12-18T13-15-44Z
+          args: ["server", "/data", "--console-address", ":9001"]
+          ports:
+            - { name: s3, containerPort: 9000 }
+            - { name: console, containerPort: 9001 }
+          envFrom:
+            - secretRef: { name: national-archive-credentials }
+          env:
+            - { name: MINIO_PROMETHEUS_AUTH_TYPE, value: "public" }   # let the Truth System scrape
+          resources:
+            requests: { cpu: "100m", memory: 256Mi }
+            limits:   { cpu: "1",    memory: 1Gi }
+          readinessProbe:
+            httpGet: { path: /minio/health/ready, port: s3 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          volumeMounts:
+            - { name: data, mountPath: /data }
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: national-archive-data }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: national-archive
+  namespace: ministry-agriculture
+  labels: { app: national-archive }
+spec:
+  selector: { app: national-archive }
+  ports:
+    - { name: s3, port: 9000, targetPort: s3 }
+    - { name: console, port: 9001, targetPort: console }
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: national-archive
+  namespace: ministry-agriculture
+  labels: { app: national-archive }
+spec:
+  selector:
+    matchLabels: { app: national-archive }
+  endpoints:
+    - port: s3
+      path: /minio/v2/metrics/cluster
+      interval: 30s
