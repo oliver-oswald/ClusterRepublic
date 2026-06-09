@@ -1,9 +1,10 @@
-# Scheduled "political purge": kills one pod every 30 minutes, but ONLY in
-# namespaces that have explicitly enlisted via the label
-# republic.io/chaos-eligible=true. No ministry carries that label by default,
-# so this is inert until you opt one in:
+# Scheduled "political purge": kills one matching pod every 30 minutes, but ONLY
+# pods that have explicitly enlisted via the label republic.io/chaos-eligible=true.
+# No pod carries that label by default, so this is inert until you opt one in
+# (Chaos Mesh selects by pod label, not namespace label):
 #
-#   kubectl label ns ministry-heavy-computing republic.io/chaos-eligible=true
+#   kubectl -n ministry-heavy-computing label pod -l app=state-cinema \
+#     republic.io/chaos-eligible=true
 #
 apiVersion: chaos-mesh.org/v1alpha1
 kind: Schedule
@@ -19,7 +20,6 @@ spec:
     action: pod-kill
     mode: one
     selector:
-      namespaces: []                       # cluster-wide, then narrowed by labels
-      labelSelectors: {}
-      namespaceSelectors:
-        republic.io/chaos-eligible: "true"  # opt-in only
+      # Opt-in only: acts solely on pods carrying this label. Inert by default.
+      labelSelectors:
+        republic.io/chaos-eligible: "true"

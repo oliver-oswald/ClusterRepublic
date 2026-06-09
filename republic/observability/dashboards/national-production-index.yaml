@@ -23,13 +23,13 @@ data:
           "type": "stat", "title": "Industrial Output (CPU cores in use)",
           "datasource": "Prometheus",
           "gridPos": { "h": 6, "w": 8, "x": 0, "y": 0 },
-          "targets": [{ "expr": "sum(rate(container_cpu_usage_seconds_total{container!=\"\"}[5m]))", "refId": "A" }]
+          "targets": [{ "expr": "sum(rate(node_cpu_seconds_total{mode!=\"idle\"}[5m]))", "refId": "A" }]
         },
         {
           "type": "stat", "title": "Population Pressure (Memory, bytes)",
           "datasource": "Prometheus",
           "gridPos": { "h": 6, "w": 8, "x": 8, "y": 0 },
-          "targets": [{ "expr": "sum(container_memory_working_set_bytes{container!=\"\"})", "refId": "A" }]
+          "targets": [{ "expr": "sum(node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes)", "refId": "A" }]
         },
         {
           "type": "stat", "title": "Political Instability (restarts, 1h)",

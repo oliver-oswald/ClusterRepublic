@@ -1,19 +1,28 @@
 # Ministry of Emergency Events (Chaos)
 
 Chaos Mesh (installed by `chaos-mesh` ArgoCD app) plus scheduled experiments
-(`chaos-experiments` app). All experiments are **opt-in** — they only act on
-namespaces carrying the label `republic.io/chaos-eligible=true`.
+(`chaos-experiments` app). All experiments are **opt-in** — Chaos Mesh selects
+targets by **pod** label, so they only act on pods carrying
+`republic.io/chaos-eligible=true`. No pod has it by default, so nothing is
+disrupted until you enlist one.
 
-## Enlist a ministry for chaos
+## Enlist workloads for chaos
 
 ```bash
-kubectl label ns ministry-heavy-computing republic.io/chaos-eligible=true
+# Label existing pods of a workload...
+kubectl -n ministry-heavy-computing label pod -l app=state-cinema \
+  republic.io/chaos-eligible=true
+
+# ...or bake it into the pod template so new pods inherit it:
+kubectl -n ministry-heavy-computing patch deploy state-cinema --type merge \
+  -p '{"spec":{"template":{"metadata":{"labels":{"republic.io/chaos-eligible":"true"}}}}}'
 ```
 
-## Withdraw it
+## Withdraw them
 
 ```bash
-kubectl label ns ministry-heavy-computing republic.io/chaos-eligible-
+kubectl -n ministry-heavy-computing label pod -l app=state-cinema \
+  republic.io/chaos-eligible-
 ```
 
 ## Experiments
